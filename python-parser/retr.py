@@ -92,13 +92,17 @@ def create_dummy_html():
     print("Dummy HTML file 'test.html' created successfully.")
 
 
-def post_dummy_html(ajax_endpoint):
+def post_dummy_html(ajax_endpoint, main_url=None):
     if not ajax_endpoint:
         print("No valid AJAX endpoint provided. Skipping file upload.")
         return
     try:
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Referer': main_url
+        }
         files = {'file': ('test.html', open('test.html', 'rb'), 'text/html')}
-        response = requests.post(ajax_endpoint, files=files)
+        response = requests.post(ajax_endpoint, files=files, headers=headers)
         response.raise_for_status()
         print("Dummy HTML file posted successfully.")
         print("Response from server:")
@@ -116,4 +120,4 @@ if __name__ == "__main__":
         main_url = sys.argv[1]
         ajax_endpoint = parse_drupal_file_upload(main_url)
         create_dummy_html()
-        post_dummy_html(ajax_endpoint)
+        post_dummy_html(ajax_endpoint, main_url)
