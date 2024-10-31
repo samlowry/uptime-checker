@@ -105,8 +105,15 @@ def post_dummy_html(ajax_endpoint, main_url=None):
         response = requests.post(ajax_endpoint, files=files, headers=headers)
         response.raise_for_status()
         print("Dummy HTML file posted successfully.")
-        print("Response from server:")
-        print(response.text)
+        print("\nResponse from server:")
+        
+        json_response = response.json()
+        for command in json_response:
+            if command['command'] == 'insert':
+                soup = BeautifulSoup(command['data'], 'html.parser')
+                print(f"\nAlert: {soup.get_text().strip()}")
+            elif command['command'] == 'settings':
+                print(f"\nSettings: Base Path: {command['settings']['basePath']}")
     except requests.exceptions.RequestException as e:
         print(f"Error occurred while posting the dummy HTML file: {e}")
 
