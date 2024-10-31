@@ -7,10 +7,12 @@ from urllib.parse import urljoin
 
 def parse_drupal_file_upload(main_url):
     try:
-        # Step 1: Retrieve the HTML content of the page
-        response = requests.get(main_url)
+        # Get initial cookies
+        session = requests.Session()
+        response = session.get(main_url)
         response.raise_for_status()
         html_content = response.text
+        cookies = session.cookies.get_dict()
 
         # Step 2: Parse HTML using BeautifulSoup
         soup = BeautifulSoup(html_content, 'html.parser')
@@ -19,7 +21,7 @@ def parse_drupal_file_upload(main_url):
         ajax_wrappers = soup.find_all('div', id=re.compile(r'edit-submitted-.*-ajax-wrapper'))
         if not ajax_wrappers:
             print("Error: Could not find any AJAX wrapper divs.")
-            return None
+            return None, None
 
         for wrapper in ajax_wrappers:
             form_item = wrapper.find('div', class_='form-item')
@@ -34,14 +36,14 @@ def parse_drupal_file_upload(main_url):
         script_tag = soup.find('script', string=re.compile(r'Drupal\.settings'))
         if not script_tag:
             print("Error: Could not find Drupal settings in script tags.")
-            return None
+            return None, None
 
         # Extract JSON data from the Drupal.settings script
         script_content = script_tag.string
         drupal_settings_match = re.search(r'Drupal\.settings, (\{.*\})\);', script_content)
         if not drupal_settings_match:
             print("Error: Could not parse Drupal settings JSON.")
-            return None
+            return None, None
 
         drupal_settings_json = drupal_settings_match.group(1)
         drupal_settings = json.loads(drupal_settings_json)
@@ -62,14 +64,14 @@ def parse_drupal_file_upload(main_url):
         for element, allowed_types in file_elements.items():
             print(f"File Input Element: {element}, Allowed Types: {allowed_types}")
 
-        return ajax_endpoint
+        return ajax_endpoint, cookies
 
     except requests.exceptions.RequestException as e:
         print(f"Error occurred while making a request: {e}")
     except json.JSONDecodeError as e:
         print(f"Error decoding JSON: {e}")
 
-    return None
+    return None, None
 
 
 def create_dummy_html():
@@ -92,7 +94,7 @@ def create_dummy_html():
     print("Dummy HTML file 'test.html' created successfully.")
 
 
-def post_dummy_html(ajax_endpoint, main_url=None):
+def post_dummy_html(ajax_endpoint, main_url=None, cookies=None):
     if not ajax_endpoint:
         print("No valid AJAX endpoint provided. Skipping file upload.")
         return
@@ -102,7 +104,7 @@ def post_dummy_html(ajax_endpoint, main_url=None):
             'Referer': main_url
         }
         files = {'file': ('test.html', open('test.html', 'rb'), 'text/html')}
-        response = requests.post(ajax_endpoint, files=files, headers=headers)
+        response = requests.post(ajax_endpoint, files=files, headers=headers, cookies=cookies)
         response.raise_for_status()
         print("Dummy HTML file posted successfully.")
         print("\nResponse from server:")
@@ -125,6 +127,6 @@ if __name__ == "__main__":
         create_dummy_html()
     else:
         main_url = sys.argv[1]
-        ajax_endpoint = parse_drupal_file_upload(main_url)
+        ajax_endpoint, cookies = parse_drupal_file_upload(main_url)
         create_dummy_html()
-        post_dummy_html(ajax_endpoint, main_url)
+        post_dummy_html(ajax_endpoint, main_url, cookies)
