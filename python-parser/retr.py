@@ -104,6 +104,20 @@ def post_dummy_html(ajax_endpoint, main_url=None, cookies=None):
             'Referer': main_url
         }
         files = {'file': ('test.html', open('test.html', 'rb'), 'text/html')}
+        
+        # Debug output
+        print("\nPOST Request Details:")
+        print(f"URL: {ajax_endpoint}")
+        print("\nHeaders:")
+        for k, v in headers.items():
+            print(f"{k}: {v}")
+        print("\nCookies:")
+        print(cookies)
+        print("\nFiles:")
+        print(f"Filename: test.html")
+        print(f"Content-Type: text/html")
+        print("-------------------")
+        
         response = requests.post(ajax_endpoint, files=files, headers=headers, cookies=cookies)
         response.raise_for_status()
         print("Dummy HTML file posted successfully.")
