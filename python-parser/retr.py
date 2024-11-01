@@ -95,20 +95,16 @@ def pretty_print_json(data):
 
 def post_form_upload(form_data, files, cookies, main_url):
     try:
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'application/json, text/javascript, */*; q=0.01',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'X-Requested-With': 'XMLHttpRequest',
-            'Origin': main_url.split('/node')[0],
-            'Referer': main_url
-        }
+        # Extract file field name from files dict
+        file_field = list(files.keys())[0]  # e.g. 'files[submitted_adjunta_cv]'
+        field_name = file_field[6:-1]  # e.g. submitted_adjunta_cv
+        field_name = field_name.split('submitted_')[1]  # e.g. adjunta_cv
+        
+        # Construct correct AJAX URL
+        base_url = main_url.split('/node')[0]
+        ajax_url = f"{base_url}/file/ajax/submitted/{field_name}/{form_data['form_build_id']}"
 
-        # Get AJAX URL from form action
-        ajax_url = f"{main_url.split('/node')[0]}/file/ajax/submitted/please_upload_your_cv/{form_data['form_build_id']}"
-
-        print("\nSubmitting to AJAX endpoint:")
+        print(f"\nSubmitting to AJAX endpoint:")
         print(f"URL: {ajax_url}")
         print("\nForm data:")
         pretty_print_json(form_data)
