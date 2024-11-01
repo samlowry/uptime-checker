@@ -20,11 +20,15 @@ def parse_drupal_file_upload(main_url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Get form
-        form = soup.find('form', {'id': 'webform-client-form-785'})
+        # Find form with dynamic ID
+        form = soup.find('form', id=lambda x: x and x.startswith('webform-client-form-'))
         if not form:
             print("Form not found")
             return None, None, None
+            
+        # Get form ID number for later use
+        form_id = form.get('id').split('-')[-1]
+        print(f"Found form ID: {form_id}")
         
         # Collect form data
         form_data = {
@@ -36,7 +40,7 @@ def parse_drupal_file_upload(main_url):
             'details[page_count]': '1',
             'details[finished]': '0',
             'form_build_id': form.find('input', {'name': 'form_build_id'})['value'],
-            'form_id': 'webform_client_form_785',
+            'form_id': f'webform_client_form_{form_id}',  # Use dynamic form ID
             '_triggering_element_name': 'submitted_please_upload_your_cv_upload_button',
             '_triggering_element_value': 'Upload'
         }
