@@ -104,6 +104,13 @@ def post_form_upload(form_data, files, cookies, main_url):
         base_url = main_url.split('/node')[0]
         ajax_url = f"{base_url}/file/ajax/submitted/{field_name}/{form_data['form_build_id']}"
 
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': main_url
+        }
+
         print(f"\nSubmitting to AJAX endpoint:")
         print(f"URL: {ajax_url}")
         print("\nForm data:")
