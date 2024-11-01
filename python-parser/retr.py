@@ -9,10 +9,8 @@ def parse_drupal_file_upload(main_url):
     try:
         session = requests.Session()
         headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate'
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8'
         }
 
         print("\nGetting form page...")
@@ -26,30 +24,43 @@ def parse_drupal_file_upload(main_url):
             print("Form not found")
             return None, None, None
             
-        # Get form ID number for later use
         form_id = form.get('id').split('-')[-1]
         print(f"Found form ID: {form_id}")
+
+        # Find file upload field
+        file_field = form.find('input', {'type': 'file'})
+        if not file_field:
+            print("File upload field not found")
+            return None, None, None
+
+        file_field_name = file_field.get('name')
+        upload_button_name = file_field.find_next('input', {'type': 'submit'}).get('name')
         
         # Collect form data
         form_data = {
-            'submitted[name]': 'Test Name',
-            'submitted[email]': 'test@example.com',
-            'submitted[please_upload_your_cv][fid]': '0',
+            'form_build_id': form.find('input', {'name': 'form_build_id'})['value'],
+            'form_id': f'webform_client_form_{form_id}',
             'details[sid]': '',
             'details[page_num]': '1',
             'details[page_count]': '1',
             'details[finished]': '0',
-            'form_build_id': form.find('input', {'name': 'form_build_id'})['value'],
-            'form_id': f'webform_client_form_{form_id}',  # Use dynamic form ID
-            '_triggering_element_name': 'submitted_please_upload_your_cv_upload_button',
+            '_triggering_element_name': upload_button_name,
             '_triggering_element_value': 'Upload'
         }
 
         # Add file field
         files = {
-            'files[submitted_please_upload_your_cv]': ('test.html', open('test.html', 'rb'), 'text/html')
+            file_field_name: ('test.html', open('test.html', 'rb'), 'text/html')
         }
 
+        # Find hidden fid field
+        fid_field = form.find('input', {'name': lambda x: x and 'fid]' in x})
+        if fid_field:
+            form_data[fid_field['name']] = '0'
+
+        print(f"\nFile field: {file_field_name}")
+        print(f"Upload button: {upload_button_name}")
+        
         return form_data, files, session.cookies.get_dict()
 
     except Exception as e:
@@ -77,7 +88,12 @@ def create_dummy_html():
     print("Dummy HTML file 'test.html' created successfully.")
 
 
-def post_form_upload(form_data, files, cookies=None, main_url=None):
+def pretty_print_json(data):
+    """Print JSON in a human-readable format"""
+    print(json.dumps(data, indent=2, ensure_ascii=False))
+
+
+def post_form_upload(form_data, files, cookies, main_url):
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -94,9 +110,11 @@ def post_form_upload(form_data, files, cookies=None, main_url=None):
 
         print("\nSubmitting to AJAX endpoint:")
         print(f"URL: {ajax_url}")
-        print("\nForm data:", form_data)
+        print("\nForm data:")
+        pretty_print_json(form_data)
         print("\nFiles:", files)
-        print("\nCookies:", cookies)
+        print("\nCookies:")
+        pretty_print_json(cookies)
 
         response = requests.post(
             ajax_url,
@@ -107,16 +125,21 @@ def post_form_upload(form_data, files, cookies=None, main_url=None):
         )
         
         print("\nResponse Status:", response.status_code)
-        print("Response Headers:", dict(response.headers))
+        print("\nResponse Headers:")
+        pretty_print_json(dict(response.headers))
         
         try:
             json_response = response.json()
-            print("\nJSON Response:", json_response)
+            print("\nJSON Response:")
+            pretty_print_json(json_response)
+            return response
         except ValueError:
             print("\nRaw Response:", response.text)
+            return None
 
     except Exception as e:
         print(f"Error: {e}")
+        return None
 
 
 if __name__ == "__main__":
