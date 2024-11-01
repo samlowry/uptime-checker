@@ -12,8 +12,7 @@ def parse_drupal_file_upload(main_url):
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.5',
-            'Accept-Encoding': 'gzip, deflate',
-            'Connection': 'keep-alive'
+            'Accept-Encoding': 'gzip, deflate'
         }
 
         print("\nGetting form page...")
@@ -21,27 +20,28 @@ def parse_drupal_file_upload(main_url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Get all form fields
+        # Get form
         form = soup.find('form', {'id': 'webform-client-form-785'})
         if not form:
             print("Form not found")
             return None, None, None
-
-        # Collect all form fields
-        form_data = {}
-        for input_field in form.find_all(['input', 'select', 'textarea']):
-            name = input_field.get('name')
-            if name and name != 'files[submitted_please_upload_your_cv]':
-                form_data[name] = input_field.get('value', '')
-                print(f"Found field: {name}")
-
-        # Add AJAX-specific fields
-        form_data.update({
+        
+        # Collect form data
+        form_data = {
+            'submitted[name]': 'Test Name',
+            'submitted[email]': 'test@example.com',
+            'submitted[please_upload_your_cv][fid]': '0',
+            'details[sid]': '',
+            'details[page_num]': '1',
+            'details[page_count]': '1',
+            'details[finished]': '0',
+            'form_build_id': form.find('input', {'name': 'form_build_id'})['value'],
+            'form_id': 'webform_client_form_785',
             '_triggering_element_name': 'submitted_please_upload_your_cv_upload_button',
             '_triggering_element_value': 'Upload'
-        })
+        }
 
-        # Add file field separately
+        # Add file field
         files = {
             'files[submitted_please_upload_your_cv]': ('test.html', open('test.html', 'rb'), 'text/html')
         }
