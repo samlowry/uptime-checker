@@ -23,26 +23,22 @@ def parse_drupal_file_upload(main_url):
         response.raise_for_status()
         soup = BeautifulSoup(response.text, 'html.parser')
 
-        # Find form with file upload
-        upload_form = soup.find('form', enctype='multipart/form-data')
-        if not upload_form:
-            print("No upload form found")
+        # Find file upload input
+        file_input = soup.find('input', type='file')
+        if not file_input:
+            print("No file input found")
             return None, None, None
 
-        # Get form action URL
-        form_url = urljoin(main_url, upload_form.get('action', main_url))
-        print(f"\nForm URL: {form_url}")
+        # Get AJAX URL from the file input's parent form
+        ajax_url = urljoin(main_url, '/system/ajax')  # Drupal's AJAX endpoint
+        
+        # Get form data for the AJAX request
+        form_data = {
+            'files[submitted_please_upload_your_cv]': ('test.html', open('test.html', 'rb'), 'text/html'),
+            'form_build_id': soup.find('input', {'name': 'form_build_id'})['value']
+        }
 
-        # Collect all form fields
-        form_data = {}
-        for input_field in upload_form.find_all(['input', 'select', 'textarea']):
-            if input_field.get('type') != 'file':
-                name = input_field.get('name')
-                if name:
-                    form_data[name] = input_field.get('value', '')
-                    print(f"Found field: {name}")
-
-        return form_url, form_data, session.cookies.get_dict()
+        return ajax_url, form_data, session.cookies.get_dict()
 
     except Exception as e:
         print(f"Error: {e}")
@@ -69,31 +65,27 @@ def create_dummy_html():
     print("Dummy HTML file 'test.html' created successfully.")
 
 
-def post_form_upload(form_url, form_data, cookies=None, main_url=None):
+def post_form_upload(ajax_url, form_data, cookies=None, main_url=None):
     try:
         headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-            'Accept': '*/*',
+            'Accept': 'application/json',
             'Accept-Language': 'en-US,en;q=0.5',
             'Accept-Encoding': 'gzip, deflate',
+            'X-Requested-With': 'XMLHttpRequest',
             'Referer': main_url,
             'Connection': 'keep-alive'
         }
 
         # Debug output
-        print("\nSubmitting form:")
-        print(f"URL: {form_url}")
-        print("\nForm data:")
-        for k, v in form_data.items():
-            print(f"{k}: {v}")
+        print("\nSubmitting to AJAX endpoint:")
+        print(f"URL: {ajax_url}")
+        print("\nForm data:", form_data)
         print("\nCookies:", cookies)
 
-        files = {'file': ('test.html', open('test.html', 'rb'), 'text/html')}
-        
         response = requests.post(
-            form_url,
-            data=form_data,
-            files=files,
+            ajax_url,
+            files=form_data,
             headers=headers,
             cookies=cookies
         )
@@ -122,7 +114,7 @@ if __name__ == "__main__":
         create_dummy_html()
     else:
         main_url = sys.argv[1]
-        form_url, form_data, cookies = parse_drupal_file_upload(main_url)
+        ajax_url, form_data, cookies = parse_drupal_file_upload(main_url)
         create_dummy_html()
-        if form_url and form_data:
-            post_form_upload(form_url, form_data, cookies, main_url)
+        if ajax_url and form_data:
+            post_form_upload(ajax_url, form_data, cookies, main_url)
