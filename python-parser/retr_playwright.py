@@ -1,7 +1,6 @@
 import asyncio
 from playwright.async_api import async_playwright
 import random
-import os
 
 # List of User-Agents
 USER_AGENTS = [
@@ -16,7 +15,7 @@ def create_dummy_html(file_name):
     """Create a test HTML file"""
     content = """
     <!DOCTYPE html>
-    <html><body><h1>Test File</h1></body></html>
+    <html><body><h1>Tost ^^^ File</h1></body></html>
     """
     with open(file_name, "w") as f:
         f.write(content)
