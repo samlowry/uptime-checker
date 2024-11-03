@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-import asyncio
 import os
 import random
 import aiohttp
@@ -49,19 +48,73 @@ async def main(url, file_name):
             await browser.close()
             return
 
-        # Locate the file input element
-        file_input = await page.query_selector('input[type="file"]:nth-of-type(1)')  # Change as needed
+        # Step 1: File Input
+        file_input = await page.query_selector('input[type="file"]:not([accept*="image"])')
 
+        # 2. Extract and print name and auto-upload status if file input is found
         if file_input:
+            file_input_data = await page.evaluate('''fileInput => {
+                return {
+                    fileFieldName: fileInput.name,
+                    autoUpload: fileInput.getAttribute("data-once")?.includes("auto-") || false
+                };
+            }''', file_input)
+
+            # Print file input details directly
+            print(f"File input name: {file_input_data['fileFieldName']}")
+            print(f"Auto-upload enabled: {file_input_data['autoUpload']}")
+
+            # 3. Set the file
             print(f"Uploading file: {file_name}")
             await file_input.set_input_files(file_name)
             print("File has been set for upload.")
         else:
             print("File input not found.")
 
-        # Additional logic for submitting the form and handling responses...
+        # Step 2: Submit Button (if Auto-Upload is Disabled)
+        if not file_input_data['autoUpload']:
+            try:
+                await page.wait_for_selector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]', state="attached", timeout=5000)
+                submit_button = await page.query_selector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]')
+                if submit_button:
+                    submit_button_name = await page.evaluate('button => button.name || "Unnamed button"', submit_button)
+                    print(f"Submit button name: {submit_button_name}")
+                    await submit_button.click()
+                    print(f"Submit button with name '{submit_button_name}' clicked.")
+                else:
+                    print("Submit button not found. Assuming auto-upload is enabled, no need to click the 'Upload' button.")
+            except Exception as e:
+                print("Submit button is not attached or visible:", e)
+        else:
+            print("Auto-upload is enabled, no need to click the 'Upload' button.")
+
+        # Step 3: Wait for the new file link to appear
+        try:
+            print("Waiting for the file link to appear...")
+            await page.wait_for_selector('span.file a', timeout=10000)  # Wait for the file link to appear
+            print("File uploaded successfully.")
+        except Exception as e:
+            print("File upload did not complete successfully:", e)
+            await browser.close()
+            return
+
+        # Extract the file path and name
+        file_link = await page.evaluate('''() => {
+            const fileElement = document.querySelector('span.file a');
+            return fileElement ? {
+                href: fileElement.href,
+                text: fileElement.innerText
+            } : null;
+        }''')
+
+        if file_link:
+            print(f"Uploaded file link: {file_link['href']}")
+            print(f"Uploaded file name: {file_link['text']}")
+        else:
+            print("Uploaded file link not found.")
 
         await browser.close()
+
 
 @app.route('/upload', methods=['POST'])
 async def upload_file():
@@ -72,7 +125,8 @@ async def upload_file():
     if not url or not file_url:
         return jsonify({"error": "URL and file_url are required."}), 400
 
-    file_name = os.path.basename(file_url)  # Extract the original file name from the URL
+    # Extract the original file name from the URL
+    file_name = os.path.basename(file_url)
 
     try:
         await download_file(file_url, file_name)  # Download the file
