@@ -4,12 +4,12 @@ FROM mcr.microsoft.com/playwright/python:v1.48.0
 # Set the working directory
 WORKDIR /app
 
+# Copy only the app folder
+COPY app/ .  # Copy the app folder contents to the working directory
+
 # Copy the requirements file and install dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Copy only the app folder
-COPY app/ .  # Copy the app folder contents to the working directory
 
 # Expose the port the app runs on
 EXPOSE 5000
