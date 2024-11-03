@@ -57,7 +57,7 @@ async def main(url):
         # Step 1: File Input
 
         # 1. Locate the file input element
-        file_input = await page.query_selector('input[type="file"]')
+        file_input = await page.query_selector('input[type="file"]:not([accept*="image"])')
 
         # 2. Extract and print name and auto-upload status if file input is found
         if file_input:
