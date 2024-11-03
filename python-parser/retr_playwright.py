@@ -86,17 +86,19 @@ async def main(url):
 
         # Only proceed to click the submit button if auto-upload is disabled
         if not file_input_data['autoUpload']:
-            # 1. Locate the submit button element
-            submit_button = await page.query_selector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]')
-
-            # 2. Extract and print name attribute if submit button is found
-            if submit_button:
-                submit_button_name = await page.evaluate('''button => button.name || "Unnamed button"''', submit_button)
-                print(f"Submit button name: {submit_button_name}")
-
-                # 3. Click the submit button
-                await submit_button.click()
-                print(f"Submit button with name '{submit_button_name}' clicked.")
+            try:
+                # Wait for the submit button to be attached to the DOM
+                await page.wait_for_selector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]', state="attached", timeout=5000)
+                submit_button = await page.query_selector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]')
+                if submit_button:
+                    submit_button_name = await page.evaluate('button => button.name || "Unnamed button"', submit_button)
+                    print(f"Submit button name: {submit_button_name}")
+                    await submit_button.click()
+                    print(f"Submit button with name '{submit_button_name}' clicked.")
+                else:
+                    print("Submit button not found. Assuming auto-upload is enabled, no need to click the 'Upload' button.")
+            except Exception as e:
+                print("Submit button is not attached or visible:", e)
         else:
             print("Auto-upload is enabled, no need to click the 'Upload' button.")
 
