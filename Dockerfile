@@ -8,8 +8,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the application code
-COPY app/ .
+# Install Playwright browsers
+RUN playwright install  # This line installs the necessary browsers for Playwright
+
+# Copy only the app folder
+COPY app/ .  # Copy the app folder contents to the working directory
 
 # Expose the port the app runs on
 EXPOSE 5000
