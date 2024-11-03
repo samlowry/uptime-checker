@@ -42,6 +42,11 @@ async def main(url):
         print("Getting form page...")
         await page.goto(url)
 
+        # Wait for the page to fully load
+        await page.wait_for_load_state("load")  # Waits until the 'load' event is fired
+
+        print("Page fully loaded, starting operations...")
+
         # Check for suspicious activity message
         body_text = await page.evaluate("document.body.innerText")
         if 'Suspicious activity detected' in body_text:
