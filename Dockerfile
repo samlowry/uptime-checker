@@ -5,7 +5,7 @@ FROM mcr.microsoft.com/playwright/python:v1.48.0
 WORKDIR /app
 
 # Copy only the app folder
-COPY app/ .  # Copy the app folder contents to the working directory
+COPY app/ .
 
 # Copy the requirements file and install dependencies
 COPY requirements.txt .
