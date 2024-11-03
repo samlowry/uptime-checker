@@ -46,7 +46,7 @@ async def main(url, file_name):
         if 'Suspicious activity detected' in body_text:
             print("Your IP address has been blocked. Please try again later.")
             await browser.close()
-            return
+            return None, None  # Return None for both values
 
         # Step 1: File Input
         file_input = await page.query_selector('input[type="file"]:not([accept*="image"])')
@@ -96,7 +96,7 @@ async def main(url, file_name):
         except Exception as e:
             print("File upload did not complete successfully:", e)
             await browser.close()
-            return
+            return None, None  # Return None for both values
 
         # Extract the file path and name
         file_link = await page.evaluate('''() => {
@@ -109,12 +109,12 @@ async def main(url, file_name):
 
         if file_link:
             print(f"Uploaded file link: {file_link['href']}")
-            print(f"Uploaded file name: {file_link['text']}")
+            await browser.close()
+            return file_link['href'], os.path.basename(file_link['href'])  # Return the URL and name extracted from the URL
         else:
             print("Uploaded file link not found.")
-
-        await browser.close()
-
+            await browser.close()
+            return None, None  # Return None for both values
 
 @app.route('/upload', methods=['POST'])
 async def upload_file():
@@ -130,7 +130,7 @@ async def upload_file():
 
     try:
         await download_file(file_url, file_name)  # Download the file
-        await main(url, file_name)  # Call your main function with the provided URL and file name
+        uploaded_file_url, uploaded_file_name = await main(url, file_name)  # Call your main function with the provided URL and file name
     except Exception as e:
         return jsonify({"error": str(e)}), 500
     finally:
@@ -138,7 +138,14 @@ async def upload_file():
         if os.path.exists(file_name):
             os.remove(file_name)
 
-    return jsonify({"message": "File uploaded successfully."}), 200
+    if uploaded_file_url and uploaded_file_name:
+        return jsonify({
+            "message": "File uploaded successfully.",
+            "uploaded_file_url": uploaded_file_url,
+            "uploaded_file_name": uploaded_file_name  # This is now extracted from the uploaded file URL
+        }), 200
+    else:
+        return jsonify({"error": "File upload failed."}), 500
 
 if __name__ == "__main__":
     app.run(host='0.0.0.0', port=5000)
