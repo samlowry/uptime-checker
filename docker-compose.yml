@@ -3,7 +3,8 @@ version: '3.8'
 services:
   uptimechecker:
     container_name: uptimechecker-container
-    build: .
+    build:
+      context: .
     # flask requires SIGINT to stop gracefully
     # (default stop signal from Compose is SIGTERM)
     stop_signal: SIGINT
