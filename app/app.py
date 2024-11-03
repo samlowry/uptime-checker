@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-import asyncio
 import os
 import random
 import aiohttp
