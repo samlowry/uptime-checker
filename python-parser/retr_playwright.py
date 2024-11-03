@@ -12,13 +12,13 @@ USER_AGENTS = [
 ]
 
 
-def create_dummy_html():
+def create_dummy_html(file_name):
     """Create a test HTML file"""
     content = """
     <!DOCTYPE html>
     <html><body><h1>Test File</h1></body></html>
     """
-    with open("test.html", "w") as f:
+    with open(file_name, "w") as f:
         f.write(content)
 
 
@@ -71,19 +71,16 @@ async def main(url):
         print(f"Auto-upload enabled: {auto_upload}")
 
         # Upload file if file input is available
-        file_path = 'test.html'  # Path to your file
-        if not os.path.exists(file_path):
-            print(f"File not found: {file_path}")
-            await browser.close()
-            return
+        file_name = 'tost.html'  # Path to your file
+        create_dummy_html(file_name)
 
-        print(f"Uploading file: {file_path}")
+        print(f"Uploading file: {file_name}")
 
         # Wait for the file input to be available
         try:
             await page.wait_for_selector(f'input[name="{file_field_name}"]', timeout=10000)
             print("File input is available. Setting the file...")
-            await page.set_input_files(f'input[name="{file_field_name}"]', file_path)
+            await page.set_input_files(f'input[name="{file_field_name}"]', file_name)
             print("File has been set for upload.")
         except Exception as e:
             print(f"Error waiting for file input: {e}")
@@ -144,5 +141,4 @@ if __name__ == "__main__":
         sys.exit(1)
 
     main_url = sys.argv[1]
-    create_dummy_html()
     asyncio.run(main(main_url))
