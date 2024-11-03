@@ -1,15 +1,31 @@
-# macOS
-.DS_Store
-.AppleDouble
-.LSOverride
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*.so
 
-# Icon files
-Icon?
-._*
+# Virtual environment
+env/
+venv/
+.venv/
 
-# Thumbnails
-Thumbs.db
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints
 
-# Folders
-.DS_Store
-.Trashes
+# Distribution / packaging
+*.egg-info/
+dist/
+build/
+
+# Pytest cache
+.pytest_cache/
+
+# MyPy
+.mypy_cache/
+
+# Logs
+*.log
+
+# IDE / editor config
+.vscode/
+.idea/
+*.subl
