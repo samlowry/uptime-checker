@@ -19,6 +19,16 @@ async def main(url):
         context = await browser.new_context(user_agent=random.choice(USER_AGENTS))
         page = await context.new_page()
 
+        # Intercept network requests to log AJAX submissions
+        async def log_request(route):
+            request = route.request
+            print(f"Request URL: {request.url}")
+            print(f"Request Method: {request.method}")
+            print(f"Request Post Data: {request.post_data}")
+            await route.continue_()
+
+        page.on("route", log_request)
+
         print("Getting form page...")
         await page.goto(url)
 
@@ -29,14 +39,23 @@ async def main(url):
             await browser.close()
             return
 
-        # Use a wildcard selector to find the form and then locate the file input within it
-        file_field_name = await page.evaluate('''() => {
-            const form = document.querySelector('form[id^="webform-client-form-"]');
-            const fileField = form ? form.querySelector('input[type="file"]') : null;
-            return fileField ? fileField.name : null;
+        # Extract form ID and file field with multiple patterns in a single evaluation
+        form_data = await page.evaluate('''() => {
+            const form = document.querySelector('form[id^="webform-client-form-"], form[id^="webform-submission"][id$="-form"]');
+            if (!form) return { formId: null, fileFieldName: null };
+
+            const formId = form.id;
+            const fileField = form.querySelector('input[type="file"]');
+            const fileFieldName = fileField ? fileField.name : null;
+
+            return { formId, fileFieldName };
         }''')
 
-        print(f"File field: {file_field_name}")
+        form_id = form_data['formId']
+        file_field_name = form_data['fileFieldName']
+
+        print(f"Found form ID: {form_id}")
+        print(f"File field name: {file_field_name}")
 
         # Upload file
         file_path = 'test.html'  # Path to your file
