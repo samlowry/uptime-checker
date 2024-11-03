@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+import asyncio
 import os
 import random
 import aiohttp
@@ -61,8 +62,6 @@ async def main(url, file_name):
         # Additional logic for submitting the form and handling responses...
 
         await browser.close()
-        os.remove(file_name)
-
 
 @app.route('/upload', methods=['POST'])
 async def upload_file():
@@ -80,6 +79,10 @@ async def upload_file():
         await main(url, file_name)  # Call your main function with the provided URL and file name
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    finally:
+        # Delete the temporary file after processing
+        if os.path.exists(file_name):
+            os.remove(file_name)
 
     return jsonify({"message": "File uploaded successfully."}), 200
 
