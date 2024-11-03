@@ -52,29 +52,55 @@ async def main(url):
         # Extract form ID, file field, auto-upload check, and submit button information
         form_data = await page.evaluate('''() => {
             const form = document.querySelector('form[id^="webform-client-form-"], form[id^="webform-submission"][id$="-form"]');
-            if (!form) return { formId: null, fileFieldName: null, autoUpload: false, submitButtonName: null };
+            if (!form) return { formId: null, fileFieldId: null, fileFieldName: null, autoUpload: false, submitButtonId: null, submitButtonName: null };
 
             const formId = form.id;
+
+            // Find the file input and assign a unique ID if needed
             const fileField = form.querySelector('input[type="file"]');
-            const fileFieldName = fileField ? fileField.name : null;
+            let fileFieldId = null;
+            let fileFieldName = null;
             const autoUpload = fileField && fileField.getAttribute('data-once')?.includes('auto-');
+            if (fileField) {
+                if (!fileField.id) {
+                    fileField.id = 'unique-file-input-' + Date.now();  // Generate a unique ID
+                }
+                fileFieldId = fileField.id;
+                fileFieldName = fileField.name;
+            }
 
-            // Find the submit button within the form
+            // Find the submit button and assign a unique ID if needed
             const submitButton = form.querySelector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]');
-            const submitButtonName = submitButton ? submitButton.name || 'Unnamed button' : null;
+            let submitButtonId = null;
+            let submitButtonName = null;
+            if (submitButton) {
+                if (!submitButton.id) {
+                    submitButton.id = 'unique-submit-button-' + Date.now();  // Generate a unique ID
+                }
+                submitButtonId = submitButton.id;
+                submitButtonName = submitButton.name || 'Unnamed button';
+            }
 
-            return { formId, fileFieldName, autoUpload, submitButtonName };
+            return { formId, fileFieldId, fileFieldName, autoUpload, submitButtonId, submitButtonName };
         }''')
 
+        # Extract the data returned from the evaluation
         form_id = form_data['formId']
+        file_field_id = form_data['fileFieldId']
         file_field_name = form_data['fileFieldName']
         auto_upload = form_data['autoUpload']
+        submit_button_id = form_data['submitButtonId']
         submit_button_name = form_data['submitButtonName']
 
-        print(f"Found form ID: {form_id}")
+        # Print extracted information for debugging and info purposes
+        print(f"Form ID: {form_id}")
+        print(f"File field ID: {file_field_id}")
         print(f"File field name: {file_field_name}")
         print(f"Auto-upload enabled: {auto_upload}")
+        print(f"Submit button ID: {submit_button_id}")
         print(f"Submit button name: {submit_button_name}")
+
+        # Step 2: Use the unique ID to interact with the file input and submit button
 
         # Upload file if file input is available
         file_name = 'test.html'  # Path to your file
@@ -82,11 +108,11 @@ async def main(url):
 
         print(f"Uploading file: {file_name}")
 
-        # Wait for the file input to be available and set the file
+        # Wait for the file input to be available and set the file using its unique ID
         try:
-            await page.wait_for_selector(f'input[name="{file_field_name}"]', timeout=10000)
-            print(f"File input {file_field_name} is available. Setting the file...")
-            await page.set_input_files(f'input[name="{file_field_name}"]', file_name)
+            await page.wait_for_selector(f'#{file_field_id}', timeout=10000)
+            print(f"File input with ID '{file_field_id}' is available. Setting the file...")
+            await page.set_input_files(f'#{file_field_id}', file_name)
             print("File has been set for upload.")
         except Exception as e:
             print(f"Error waiting for file input: {e}")
@@ -96,22 +122,12 @@ async def main(url):
         # Click the 'Upload' button if auto-upload is NOT enabled
         if not auto_upload:
             print("Submitting the form by clicking the 'Upload' button...")
-            upload_clicked = await page.evaluate('''(formId) => {
-                const form = document.getElementById(formId);
-                if (form) {
-                    const button = form.querySelector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]');
-                    if (button) {
-                        button.click();
-                        return true;
-                    }
-                }
-                return false;
-            }''', form_id)
-
-            if upload_clicked:
-                print(f"Upload button clicked. Button name: {submit_button_name}")
+            submit_button = await page.query_selector(f'#{submit_button_id}')
+            if submit_button:
+                await submit_button.click()
+                print(f"Submit button with ID '{submit_button_id}' and name '{submit_button_name}' clicked.")
             else:
-                print("Upload button not found.")
+                print("Submit button not found.")
         else:
             print("Auto-upload is enabled, no need to click the 'Upload' button.")
 
