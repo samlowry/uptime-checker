@@ -1,5 +1,5 @@
-# Use the official Python image
-FROM python:3.9-slim
+# Use the official Playwright image
+FROM mcr.microsoft.com/playwright/python:v1.48.0
 
 # Set the working directory
 WORKDIR /app
@@ -8,14 +8,11 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install Playwright browsers
-RUN playwright install  # This line installs the necessary browsers for Playwright
-
 # Copy only the app folder
 COPY app/ .  # Copy the app folder contents to the working directory
 
 # Expose the port the app runs on
 EXPOSE 5000
 
-# Command to run the application
-CMD ["python", "app.py"]
+# Command to run your application
+CMD ["python", "app.py"]  # Adjust this command based on your entry point
