@@ -1,12 +1,14 @@
 version: '3.8'
 
 services:
-  flask-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
+  uptimechecker:
+    container_name: uptimechecker-container
+    build: .
+    # flask requires SIGINT to stop gracefully
+    # (default stop signal from Compose is SIGTERM)
+    stop_signal: SIGINT
     ports:
       - "8327:5000"  # Map port 8327 on the host to port 5000 in the container
     environment:
       - FLASK_ENV=production  # Set Flask environment to production
-    restart: always  # Restart policy for production
+    restart: unless-stopped  # Restart policy for production
