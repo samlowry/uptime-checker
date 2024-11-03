@@ -1,7 +1,11 @@
+from flask import Flask, request, jsonify
 import asyncio
-from playwright.async_api import async_playwright
-import random
 import os
+import random
+import aiohttp
+from playwright.async_api import async_playwright
+
+app = Flask(__name__)
 
 # List of User-Agents
 USER_AGENTS = [
@@ -12,38 +16,29 @@ USER_AGENTS = [
 ]
 
 
-def create_dummy_html(file_name):
-    """Create a test HTML file"""
-    content = """
-    <!DOCTYPE html>
-    <html><body><h1>Tost ^^^ File</h1></body></html>
-    """
-    with open(file_name, "w") as f:
-        f.write(content)
+async def download_file(file_url, file_name):
+    """Download a file from a URL"""
+    async with aiohttp.ClientSession() as session:
+        async with session.get(file_url) as response:
+            if response.status == 200:
+                with open(file_name, 'wb') as f:
+                    f.write(await response.read())
+            else:
+                raise Exception(f"Failed to download file: {response.status}")
 
 
-async def main(url):
+async def main(url, file_name):
     async with async_playwright() as p:
         # Launch the browser in headless mode
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(user_agent=random.choice(USER_AGENTS))
         page = await context.new_page()
 
-        # Intercept network requests to log AJAX submissions
-        async def log_request(route):
-            request = route.request
-            print(f"Request URL: {request.url}")
-            print(f"Request Method: {request.method}")
-            print(f"Request Post Data: {request.post_data}")
-            await route.continue_()
-
-        page.on("route", log_request)
-
         print("Getting form page...")
         await page.goto(url)
 
         # Wait for the page to fully load
-        await page.wait_for_load_state("load")  # Waits until the 'load' event is fired
+        await page.wait_for_load_state("load")
 
         print("Page fully loaded, starting operations...")
 
@@ -54,87 +49,40 @@ async def main(url):
             await browser.close()
             return
 
-        # Step 1: File Input
+        # Locate the file input element
+        file_input = await page.query_selector('input[type="file"]:nth-of-type(1)')  # Change as needed
 
-        # 1. Locate the file input element
-        file_input = await page.query_selector('input[type="file"]:not([accept*="image"])')
-
-        # 2. Extract and print name and auto-upload status if file input is found
         if file_input:
-            file_input_data = await page.evaluate('''fileInput => {
-                return {
-                    fileFieldName: fileInput.name,
-                    autoUpload: fileInput.getAttribute("data-once")?.includes("auto-") || false
-                };
-            }''', file_input)
-
-            # Print file input details directly
-            print(f"File input name: {file_input_data['fileFieldName']}")
-            print(f"Auto-upload enabled: {file_input_data['autoUpload']}")
-
-            # 3. Set the file
-            file_name = 'test.html'  # Path to your file
-            create_dummy_html(file_name)
             print(f"Uploading file: {file_name}")
-
             await file_input.set_input_files(file_name)
             print("File has been set for upload.")
         else:
             print("File input not found.")
 
-        # Step 2: Submit Button (if Auto-Upload is Disabled)
-
-        # Only proceed to click the submit button if auto-upload is disabled
-        if not file_input_data['autoUpload']:
-            try:
-                # Wait for the submit button to be attached to the DOM
-                await page.wait_for_selector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]', state="attached", timeout=5000)
-                submit_button = await page.query_selector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]')
-                if submit_button:
-                    submit_button_name = await page.evaluate('button => button.name || "Unnamed button"', submit_button)
-                    print(f"Submit button name: {submit_button_name}")
-                    await submit_button.click()
-                    print(f"Submit button with name '{submit_button_name}' clicked.")
-                else:
-                    print("Submit button not found. Assuming auto-upload is enabled, no need to click the 'Upload' button.")
-            except Exception as e:
-                print("Submit button is not attached or visible:", e)
-        else:
-            print("Auto-upload is enabled, no need to click the 'Upload' button.")
-
-        # Step 3: Wait for the new file link to appear
-        try:
-            print("Waiting for the file link to appear...")
-            await page.wait_for_selector('span.file a', timeout=10000)  # Wait for the file link to appear
-            print("File uploaded successfully.")
-        except Exception as e:
-            print("File upload did not complete successfully:", e)
-            await browser.close()
-            return
-
-        # Extract the file path and name
-        file_link = await page.evaluate('''() => {
-            const fileElement = document.querySelector('span.file a');
-            return fileElement ? {
-                href: fileElement.href,
-                text: fileElement.innerText
-            } : null;
-        }''')
-
-        if file_link:
-            print(f"Uploaded file link: {file_link['href']}")
-            print(f"Uploaded file name: {file_link['text']}")
-        else:
-            print("Uploaded file link not found.")
+        # Additional logic for submitting the form and handling responses...
 
         await browser.close()
         os.remove(file_name)
 
-if __name__ == "__main__":
-    import sys
-    if len(sys.argv) < 2:
-        print("Usage: python retr_playwright.py <URL>")
-        sys.exit(1)
 
-    main_url = sys.argv[1]
-    asyncio.run(main(main_url))
+@app.route('/upload', methods=['POST'])
+async def upload_file():
+    data = request.json
+    url = data.get('url')
+    file_url = data.get('file_url')
+
+    if not url or not file_url:
+        return jsonify({"error": "URL and file_url are required."}), 400
+
+    file_name = os.path.basename(file_url)  # Extract the original file name from the URL
+
+    try:
+        await download_file(file_url, file_name)  # Download the file
+        await main(url, file_name)  # Call your main function with the provided URL and file name
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+    return jsonify({"message": "File uploaded successfully."}), 200
+
+if __name__ == "__main__":
+    app.run(host='0.0.0.0', port=5000)
