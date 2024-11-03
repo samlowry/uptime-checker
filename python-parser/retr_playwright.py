@@ -1,6 +1,7 @@
 import asyncio
 from playwright.async_api import async_playwright
 import random
+import os
 
 # List of User-Agents
 USER_AGENTS = [
@@ -140,6 +141,7 @@ async def main(url):
             print("Uploaded file link not found.")
 
         await browser.close()
+        os.remove(file_name)
 
 if __name__ == "__main__":
     import sys
