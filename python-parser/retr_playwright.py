@@ -49,89 +49,53 @@ async def main(url):
             await browser.close()
             return
 
-        # Extract form ID, file field, auto-upload check, and submit button information
-        form_data = await page.evaluate('''() => {
-            const form = document.querySelector('form[id^="webform-client-form-"], form[id^="webform-submission"][id$="-form"]');
-            if (!form) return { formId: null, fileFieldId: null, fileFieldName: null, autoUpload: false, submitButtonId: null, submitButtonName: null };
+        # Step 1: File Input
 
-            const formId = form.id;
+        # 1. Locate the file input element
+        file_input = await page.query_selector('input[type="file"]')
 
-            // Find the file input and assign a unique ID if needed
-            const fileField = form.querySelector('input[type="file"]');
-            let fileFieldId = null;
-            let fileFieldName = null;
-            const autoUpload = fileField && fileField.getAttribute('data-once')?.includes('auto-');
-            if (fileField) {
-                if (!fileField.id) {
-                    fileField.id = 'unique-file-input-' + Date.now();  // Generate a unique ID
-                }
-                fileFieldId = fileField.id;
-                fileFieldName = fileField.name;
-            }
+        # 2. Extract and print name and auto-upload status if file input is found
+        if file_input:
+            file_input_data = await page.evaluate('''fileInput => {
+                return {
+                    fileFieldName: fileInput.name,
+                    autoUpload: fileInput.getAttribute("data-once")?.includes("auto-") || false
+                };
+            }''', file_input)
 
-            // Find the submit button and assign a unique ID if needed
-            const submitButton = form.querySelector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]');
-            let submitButtonId = null;
-            let submitButtonName = null;
-            if (submitButton) {
-                if (!submitButton.id) {
-                    submitButton.id = 'unique-submit-button-' + Date.now();  // Generate a unique ID
-                }
-                submitButtonId = submitButton.id;
-                submitButtonName = submitButton.name || 'Unnamed button';
-            }
+            # Print file input details directly
+            print(f"File input name: {file_input_data['fileFieldName']}")
+            print(f"Auto-upload enabled: {file_input_data['autoUpload']}")
 
-            return { formId, fileFieldId, fileFieldName, autoUpload, submitButtonId, submitButtonName };
-        }''')
+            # 3. Set the file
+            file_name = 'test.html'  # Path to your file
+            create_dummy_html(file_name)
+            print(f"Uploading file: {file_name}")
 
-        # Extract the data returned from the evaluation
-        form_id = form_data['formId']
-        file_field_id = form_data['fileFieldId']
-        file_field_name = form_data['fileFieldName']
-        auto_upload = form_data['autoUpload']
-        submit_button_id = form_data['submitButtonId']
-        submit_button_name = form_data['submitButtonName']
-
-        # Print extracted information for debugging and info purposes
-        print(f"Form ID: {form_id}")
-        print(f"File field ID: {file_field_id}")
-        print(f"File field name: {file_field_name}")
-        print(f"Auto-upload enabled: {auto_upload}")
-        print(f"Submit button ID: {submit_button_id}")
-        print(f"Submit button name: {submit_button_name}")
-
-        # Step 2: Use the unique ID to interact with the file input and submit button
-
-        # Upload file if file input is available
-        file_name = 'test.html'  # Path to your file
-        create_dummy_html(file_name)
-
-        print(f"Uploading file: {file_name}")
-
-        # Wait for the file input to be available and set the file using its unique ID
-        try:
-            await page.wait_for_selector(f'#{file_field_id}', timeout=10000)
-            print(f"File input with ID '{file_field_id}' is available. Setting the file...")
-            await page.set_input_files(f'#{file_field_id}', file_name)
+            await file_input.set_input_files(file_name)
             print("File has been set for upload.")
-        except Exception as e:
-            print(f"Error waiting for file input: {e}")
-            await browser.close()
-            return
+        else:
+            print("File input not found.")
 
-        # Click the 'Upload' button if auto-upload is NOT enabled
-        if not auto_upload:
-            print("Submitting the form by clicking the 'Upload' button...")
-            submit_button = await page.query_selector(f'#{submit_button_id}')
+        # Step 2: Submit Button (if Auto-Upload is Disabled)
+
+        # Only proceed to click the submit button if auto-upload is disabled
+        if not file_input_data['autoUpload']:
+            # 1. Locate the submit button element
+            submit_button = await page.query_selector('input[type="submit"][value="Upload"], button[type="submit"][value="Upload"]')
+
+            # 2. Extract and print name attribute if submit button is found
             if submit_button:
+                submit_button_name = await page.evaluate('''button => button.name || "Unnamed button"''', submit_button)
+                print(f"Submit button name: {submit_button_name}")
+
+                # 3. Click the submit button
                 await submit_button.click()
-                print(f"Submit button with ID '{submit_button_id}' and name '{submit_button_name}' clicked.")
-            else:
-                print("Submit button not found.")
+                print(f"Submit button with name '{submit_button_name}' clicked.")
         else:
             print("Auto-upload is enabled, no need to click the 'Upload' button.")
 
-        # Wait for the new file link to appear
+        # Step 3: Wait for the new file link to appear
         try:
             print("Waiting for the file link to appear...")
             await page.wait_for_selector('span.file a', timeout=10000)  # Wait for the file link to appear
