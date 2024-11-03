@@ -11,6 +11,7 @@ USER_AGENTS = [
     # Add more User-Agents as needed
 ]
 
+
 def create_dummy_html():
     """Create a test HTML file"""
     content = """
@@ -20,11 +21,12 @@ def create_dummy_html():
     with open("test.html", "w") as f:
         f.write(content)
 
+
 def parse_drupal_file_upload(main_url, session=None):
     """Parse Drupal form and prepare file upload data"""
     try:
         session = session or requests.Session()
-        
+
         # Select a random User-Agent
         headers = {
             'User-Agent': random.choice(USER_AGENTS),
@@ -33,7 +35,7 @@ def parse_drupal_file_upload(main_url, session=None):
 
         print("\nGetting form page...")
         response = session.get(main_url, headers=headers)
-        
+
         # Check for suspicious activity message
         if '<h1>Suspicious activity detected' in response.text:
             print("Your IP address has been blocked. Please try again later.")
@@ -41,11 +43,11 @@ def parse_drupal_file_upload(main_url, session=None):
 
         soup = BeautifulSoup(response.text, 'html.parser')
         form = soup.select_one('form[id^="webform-client-form-"]')
-        
+
         if not form:
             print("Form not found")
             return None, None, None, None
-            
+
         form_id = form['id'].split('-')[-1]
         print(f"Found form ID: {form_id}")
 
@@ -57,7 +59,7 @@ def parse_drupal_file_upload(main_url, session=None):
 
         file_field_name = file_field.get('name')
         upload_button = file_field.find_next('input', {'type': 'submit'})
-        
+
         print(f"\nFile field: {file_field_name}")
         print(f"Upload button: {upload_button.get('name')}")
 
@@ -75,12 +77,13 @@ def parse_drupal_file_upload(main_url, session=None):
 
         # Add file field
         files = {file_field_name: ('test.html', open('test.html', 'rb'), 'text/html')}
-        
+
         return form_data, files, session.cookies.get_dict(), session
 
     except Exception as e:
         print(f"Error: {e}")
         return None, None, None, None
+
 
 def post_form_upload(form_data, files, cookies, main_url, session=None):
     try:
@@ -135,19 +138,21 @@ def post_form_upload(form_data, files, cookies, main_url, session=None):
         print(f"Error: {e}")
         return None
 
+
 def pretty_print_json(data):
     """Print JSON in a human-readable format"""
     print(json.dumps(data, indent=2, ensure_ascii=False))
+
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) < 2:
         print("Usage: python script.py <URL>")
         sys.exit(1)
-        
+
     main_url = sys.argv[1]
     create_dummy_html()
     form_data, files, cookies, session = parse_drupal_file_upload(main_url)
-    
+
     if form_data and files:
         post_form_upload(form_data, files, cookies, main_url)

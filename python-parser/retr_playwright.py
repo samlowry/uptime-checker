@@ -12,6 +12,16 @@ USER_AGENTS = [
 ]
 
 
+def create_dummy_html():
+    """Create a test HTML file"""
+    content = """
+    <!DOCTYPE html>
+    <html><body><h1>Test File</h1></body></html>
+    """
+    with open("test.html", "w") as f:
+        f.write(content)
+
+
 async def main(url):
     async with async_playwright() as p:
         # Launch the browser in headless mode
@@ -39,25 +49,28 @@ async def main(url):
             await browser.close()
             return
 
-        # Extract form ID and file field with multiple patterns in a single evaluation
+        # Extract form ID, file field, and check if auto-upload is enabled
         form_data = await page.evaluate('''() => {
             const form = document.querySelector('form[id^="webform-client-form-"], form[id^="webform-submission"][id$="-form"]');
-            if (!form) return { formId: null, fileFieldName: null };
+            if (!form) return { formId: null, fileFieldName: null, autoUpload: false };
 
             const formId = form.id;
             const fileField = form.querySelector('input[type="file"]');
             const fileFieldName = fileField ? fileField.name : null;
+            const autoUpload = fileField && fileField.getAttribute('data-once')?.includes('auto-');
 
-            return { formId, fileFieldName };
+            return { formId, fileFieldName, autoUpload };
         }''')
 
         form_id = form_data['formId']
         file_field_name = form_data['fileFieldName']
+        auto_upload = form_data['autoUpload']
 
         print(f"Found form ID: {form_id}")
         print(f"File field name: {file_field_name}")
+        print(f"Auto-upload enabled: {auto_upload}")
 
-        # Upload file
+        # Upload file if file input is available
         file_path = 'test.html'  # Path to your file
         if not os.path.exists(file_path):
             print(f"File not found: {file_path}")
@@ -77,9 +90,25 @@ async def main(url):
             await browser.close()
             return
 
-        # Submit the form
-        print("Submitting the form...")
-        await page.click('input[type="submit"]')
+        # Click the 'Upload' button if auto-upload is NOT enabled
+        if not auto_upload:
+            print("Submitting the form by clicking the 'Upload' button...")
+            upload_button_info = await page.evaluate('''() => {
+                const button = document.querySelector('input[type="submit"][value="Upload"]');
+                if (button) {
+                    button.click();
+                    return button.name || 'Unnamed button';
+                }
+                return null;
+            }''')
+
+            if upload_button_info:
+                print(f"Upload button clicked. Button name: {upload_button_info}")
+            else:
+                print("Upload button not found.")
+
+        else:
+            print("Auto-upload is enabled, no need to click the 'Upload' button.")
 
         # Wait for the new file link to appear
         try:
@@ -115,4 +144,5 @@ if __name__ == "__main__":
         sys.exit(1)
 
     main_url = sys.argv[1]
+    create_dummy_html()
     asyncio.run(main(main_url))
