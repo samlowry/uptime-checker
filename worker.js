@@ -69,11 +69,11 @@ async function runScript() {
                 body: JSON.stringify(payload),
               });
 
-              // Extract the response body as JSON
-              const responseBody = await postResponse.json();
+              // Get the response body as text and log it directly
+              const responseBody = await postResponse.text();
 
               log += `Checked URL: ${constructedUrl} - Status: ${urlResponse.status} (Notification Sent)\n`;
-              log += `POST Response: ${JSON.stringify(responseBody)}\n`;
+              log += `POST Response: ${responseBody}\n`;
             } else {
               log += `Checked URL: ${constructedUrl} - Status: ${urlResponse.status}\n`;
             }
