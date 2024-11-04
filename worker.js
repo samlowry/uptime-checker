@@ -55,7 +55,7 @@ async function runScript() {
 
             if (urlResponse.status !== 200) {
               // If the status is not OK, send a POST request to the API
-              const apiUrl = 'http://161.35.4.89:8327/upload';
+              const apiUrl = 'http://uptimechecker.swingsystem.net:8327/upload';
               const payload = {
                 url: formUrl, // Website form URL
                 file_url: fileUrl, // Full file URL from header
