@@ -41,17 +41,42 @@ async function runScript() {
       // Iterate through each row to find active tasks
       for (const row of websites) {
         const columns = row.split(',');
-        const websiteUrl = columns[3].trim();
+        const formUrl = columns[2].trim(); // Extract form URL (3rd column)
+        const resultsUrl = columns[3].trim(); // Extract base URL from results column (4th column)
         const isActive = columns[col].trim();
 
-        if (isActive === '1' && websiteUrl) {
+        if (isActive === '1' && resultsUrl) {
           // Construct URL to check
-          const constructedUrl = `${websiteUrl}${filename}`;
+          const constructedUrl = `${resultsUrl}${filename}`;
 
           try {
             // Check the HTTP status of the constructed URL
             const urlResponse = await fetch(constructedUrl, { method: 'HEAD' });
-            log += `Checked URL: ${constructedUrl} - Status: ${urlResponse.status}\n`;
+
+            if (urlResponse.status !== 200) {
+              // If the status is not OK, send a POST request to the API
+              const apiUrl = 'http://161.35.4.89:8327/upload';
+              const payload = {
+                url: formUrl, // Website form URL
+                file_url: fileUrl, // Full file URL from header
+              };
+
+              const postResponse = await fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(payload),
+              });
+
+              // Extract the response body as JSON
+              const responseBody = await postResponse.json();
+
+              log += `Checked URL: ${constructedUrl} - Status: ${urlResponse.status} (Notification Sent)\n`;
+              log += `POST Response: ${JSON.stringify(responseBody)}\n`;
+            } else {
+              log += `Checked URL: ${constructedUrl} - Status: ${urlResponse.status}\n`;
+            }
           } catch (error) {
             log += `Error checking URL: ${constructedUrl} - ${error}\n`;
           }
